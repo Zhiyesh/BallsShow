@@ -25,8 +25,8 @@ GamingWidget::GamingWidget(QWidget *parent)
     this->existingfoodnum = FOOD_NUM;
 
     //你和其他玩家
-    this->player = new Ball(this, 50, PLAYER_DEFAULT_SPEED, "#2dbc36", true);
-    player->move(position[0], position[1]);
+    this->allplayers[OTHERPLAYERS] = new Ball(this, 50, PLAYER_DEFAULT_SPEED, "#2dbc36", true);
+//    player->move(position[0], position[1]);
     this->__is_gameover = false;
     for (int i = 0; i < OTHERPLAYERS; i++)
     {
@@ -36,10 +36,9 @@ GamingWidget::GamingWidget(QWidget *parent)
                                   .arg(rand() % 225 + 15));
         allplayers[i]->updatePos(rand() % (WIDTH-200) + 100, rand() % (HEIGHT-200) + 100);
     }
-    this->allplayers[OTHERPLAYERS] = player;
 
     //界面刷新
-    this->__main_timer_id = this->startTimer(95);
+    this->__main_timer_id = this->startTimer(115);
 
     //更新随机坐标
     this->updateRandPos = new QTimer(this);
@@ -80,21 +79,23 @@ GamingWidget::GamingWidget(QWidget *parent)
                          "color: rgb(59, 197, 114);"
                          "}");
     connect(again, &QPushButton::clicked, [&](){
-        delete this->player;
-        this->player = new Ball(this, 50, PLAYER_DEFAULT_SPEED, "#2dbc36", true);
+        this->__is_gameover = false;
+        this->allplayers[_getMyIdFromAllplayers()] = new Ball(this, 50, PLAYER_DEFAULT_SPEED, "#2dbc36", true);
         this->position[0] = rand() % (WIDTH - 100) + 50;
         this->position[1] = rand() % (HEIGHT - 100) + 50;
-        player->move(position[0], position[1]);
-        this->player->show();
+//        this->allplayers[_getMyIdFromAllplayers()]->move(position[0], position[1]);
         again->hide();
         weakeningbg->hide();
-        this->__is_gameover = false;
     });
 }
 
 void GamingWidget::timerEvent(QTimerEvent* event)
 {
     if (event->timerId() != this->__main_timer_id) return;
+
+    //IsGameOver
+    _gameOver();
+    if (this->__is_gameover) return;
 
     this->__game_time++;
 
@@ -110,24 +111,35 @@ void GamingWidget::timerEvent(QTimerEvent* event)
 //EatFood
     _eatFood();
 
-//EatingAndEated
-    _eatingAndEated();
-
 //AutoResetOther
     _autoResetOther();
 
 //CreateNewFood
     _createNewFood();
 
-//IsGameOver
-    _gameOver();
-if (this->__is_gameover) return;
+//EatingAndEated
+    _eatingAndEated();
+
+//AutoShowAndHidePlayers
+    _autoShowAndHide();
 
 //PlayerMoving
     _playerMoving();
 }
 
-void GamingWidget::sortPlayersBySize(Ball** players, int size)
+int GamingWidget::_getMyIdFromAllplayers() const
+{
+    for (int i = 0; i < ALLPLAYERS_COUNTS; i++)
+    {
+        if (this->allplayers[i]->isMe())
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void GamingWidget::sortPlayersBySize(Ball** players, const int& size)
 {
     for (int i = 0; i < size - 1; i++)
     {
@@ -138,6 +150,18 @@ void GamingWidget::sortPlayersBySize(Ball** players, int size)
         std::swap(players[j], players[j + 1]);
             }
         }
+    }
+}
+
+void GamingWidget::_autoShowAndHide()
+{
+    for (int i = 0; i < ALLPLAYERS_COUNTS; i++)
+    {
+        if (this->allplayers[i]->isExist())
+        {
+            this->allplayers[i]->show();
+        }
+        else this->allplayers[i]->hide();
     }
 }
 
@@ -157,29 +181,19 @@ void GamingWidget::_autoResetOther()
 
 void GamingWidget::_gameOver()
 {
-    if (!this->player->isExist())
-    {
-        this->weakeningbg->show();
-        this->weakeningbg->raise();
-        this->again->show();
-        this->again->raise();
-        this->__is_gameover = true;
-    }
+    if (this->allplayers[_getMyIdFromAllplayers()]->isExist()) return;
+    if (this->weakeningbg->isHidden()) this->weakeningbg->show();
+    this->weakeningbg->raise();
+    if (this->again->isHidden()) this->again->show();
+    this->again->raise();
+    this->__is_gameover = true;
 }
 
 void GamingWidget::_biggerDetermination()
 {
     sortPlayersBySize(this->allplayers, ALLPLAYERS_COUNTS);
 
-    for (int i = 0; i < ALLPLAYERS_COUNTS; i++)
-    {
-        this->allplayers[i]->raise();
-        if (this->allplayers[i]->isExist())
-        {
-            this->allplayers[i]->show();
-        }
-        else this->allplayers[i]->hide();
-    }
+    for (int i = 0; i < ALLPLAYERS_COUNTS; i++) this->allplayers[i]->raise();
 }
 
 void GamingWidget::_speedDecline()
@@ -187,7 +201,7 @@ void GamingWidget::_speedDecline()
     double __decline_scale;
     for (int i = 0; i < ALLPLAYERS_COUNTS; i++)
     {
-        __decline_scale = (allplayers[i]->getSize() * allplayers[i]->getSize()) / 161576;
+        __decline_scale = (allplayers[i]->getSize() * allplayers[i]->getSize()) / 131576;
         if (__decline_scale > 0)
         {
             if (allplayers[i]->isMe())
@@ -205,6 +219,7 @@ void GamingWidget::_playerMoving()
     QPoint mouse = this->mapFromGlobal(QCursor::pos());
     int mx = mouse.x();
     int my = mouse.y();
+    Ball* player = this->allplayers[_getMyIdFromAllplayers()];
     double playerspeed = player->getSpeed();
     if (Ball::doubleAbs(mx - position[0]) > 10 || Ball::doubleAbs(my - position[1]) > 10)
     {
@@ -289,31 +304,31 @@ void GamingWidget::_othersMoving()
     {
         if (allplayers[i]->isMe()) continue;
         int __i = i % OTHERPLAYERS;
-        if (this->allplayers[__i]->isExist())
+        if (this->allplayers[i]->isExist())
         {
-            int curx = allplayers[__i]->getCircleX();
-            int cury = allplayers[__i]->getCircleY();
+            int curx = allplayers[i]->getCircleX();
+            int cury = allplayers[i]->getCircleY();
             if (__other_move_targetx[__i] > curx && __other_move_targety[__i] > cury)  //rightdown
             {
-                curx += this->allplayers[__i]->getSpeed();
-                cury += this->allplayers[__i]->getSpeed();
+                curx += this->allplayers[i]->getSpeed();
+                cury += this->allplayers[i]->getSpeed();
             }
             else if (__other_move_targetx[__i] > curx && __other_move_targety[__i] < cury)  //rightup
             {
-                curx += this->allplayers[__i]->getSpeed();
-                cury -= this->allplayers[__i]->getSpeed();
+                curx += this->allplayers[i]->getSpeed();
+                cury -= this->allplayers[i]->getSpeed();
             }
             else if (__other_move_targetx[__i] < curx && __other_move_targety[__i] > cury)  //leftdown
             {
-                curx -= this->allplayers[__i]->getSpeed();
-                cury += this->allplayers[__i]->getSpeed();
+                curx -= this->allplayers[i]->getSpeed();
+                cury += this->allplayers[i]->getSpeed();
             }
             else if (__other_move_targetx[__i] < curx && __other_move_targety[__i] < cury)  //leftup
             {
-                curx -= this->allplayers[__i]->getSpeed();
-                cury -= this->allplayers[__i]->getSpeed();
+                curx -= this->allplayers[i]->getSpeed();
+                cury -= this->allplayers[i]->getSpeed();
             }
-            allplayers[__i]->updatePos(curx, cury);
+            allplayers[i]->updatePos(curx, cury);
         }
     }
 }

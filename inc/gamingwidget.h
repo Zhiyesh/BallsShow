@@ -37,7 +37,7 @@ public:
     ~GamingWidget();
 
 public slots:
-    void sortPlayersBySize(Ball **players, int size);
+    void sortPlayersBySize(Ball **players, const int& size);
 
 private slots:
     void _gameOver();
@@ -48,7 +48,9 @@ private slots:
     void _eatFood();
     void _eatingAndEated();
     void _createNewFood();
+    void _autoShowAndHide();
     void _autoResetOther();
+    int _getMyIdFromAllplayers() const;
 
 protected:
     void timerEvent(QTimerEvent* event);
@@ -57,7 +59,7 @@ private:
     unsigned int ui_size[2];
     float position[2];
     int __main_timer_id;
-    Ball* player;
+//    Ball* player;
     Ball* allplayers[ALLPLAYERS_COUNTS];
     unsigned int __game_time;
     int __other_move_targetx[OTHERPLAYERS];
