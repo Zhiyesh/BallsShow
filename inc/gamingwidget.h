@@ -41,7 +41,9 @@ public slots:
 
 private slots:
     void _gameOver();
+    void _gameWinner();
     void _biggerDetermination();
+    void _blinkMe();
     void _speedDecline();
     void _playerMoving();
     void _othersMoving();
@@ -50,6 +52,7 @@ private slots:
     void _createNewFood();
     void _autoShowAndHide();
     void _autoResetOther();
+    void _showTipScreen(const QString& content);
     int _getMyIdFromAllplayers() const;
 
 protected:
@@ -59,17 +62,19 @@ private:
     unsigned int ui_size[2];
     float position[2];
     int __main_timer_id;
-//    Ball* player;
-    Ball* allplayers[ALLPLAYERS_COUNTS];
+    int __a_few_time;
+    Ball* all_players[ALLPLAYERS_COUNTS];
     unsigned int __game_time;
     int __other_move_targetx[OTHERPLAYERS];
     int __other_move_targety[OTHERPLAYERS];
-    QTimer* updateRandPos;
+    QTimer* update_rand_pos;
+    QTimer* buffer_timer;
     Food* foods[FOOD_NUM];
-    unsigned int existingfoodnum;
-    QPushButton* again;
-    QLabel* weakeningbg;
+    unsigned int existing_food_num;
+    QPushButton* again_or_end;
+    QLabel* weakening_bg;
     bool __is_gameover;
+    bool __is_just_reseted;
 };
 
 #endif // GAMINGWIDGET_H

@@ -19,12 +19,15 @@ public slots:
     bool reSize(const double& size);
     double getSpeed() const;
     void setSpeed(const double& speed);
+    void setColor(const QString& color);
     void growUp(const double& size);
-    bool updateSize();
+    bool updateQuality();
     void updatePos(const int& x, const int& y);
     int getCircleX() const;
     int getCircleY() const;
     bool isMe() const;
+    int getRank() const;
+    void setRank(const int& rank);
 
 protected:
     double __size;
@@ -33,6 +36,7 @@ protected:
 private:
     bool _isMe;
     double __speed;
+    int __rank;
     QString __color;
 };
 

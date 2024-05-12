@@ -13,6 +13,7 @@ GamingWidget::GamingWidget(QWidget *parent)
     this->position[0] = ui_size[0] / 2 - 25;
     this->position[1] = ui_size[1] / 2 - 25;
     this->__game_time = 0;
+    this->__a_few_time = 0;
 
     //食物
     srand((unsigned)time(NULL));
@@ -22,55 +23,83 @@ GamingWidget::GamingWidget(QWidget *parent)
         foods[i]->move(rand() % WIDTH, rand() % HEIGHT);
     }
 
-    this->existingfoodnum = FOOD_NUM;
+    this->existing_food_num = FOOD_NUM;
 
     //你和其他玩家
-    this->allplayers[OTHERPLAYERS] = new Ball(this, 50, PLAYER_DEFAULT_SPEED, "#2dbc36", true);
-//    player->move(position[0], position[1]);
+    this->all_players[OTHERPLAYERS] = new Ball(this, 50, PLAYER_DEFAULT_SPEED, "#2dbc36", true);
+    this->all_players[OTHERPLAYERS]->updatePos(position[0], position[1]);
     this->__is_gameover = false;
     for (int i = 0; i < OTHERPLAYERS; i++)
     {
-        this->allplayers[i] = new Ball(this, rand() % 90 + 30, OTHERS_AMEND_SPEED, QString("rgb(%1,%2,%3)")
+        this->all_players[i] = new Ball(this, rand() % 120 + 30, OTHERS_AMEND_SPEED, QString("rgb(%1,%2,%3)")
                                   .arg(rand() % 225 + 15)
                                   .arg(rand() % 225 + 15)
                                   .arg(rand() % 225 + 15));
-        allplayers[i]->updatePos(rand() % (WIDTH-200) + 100, rand() % (HEIGHT-200) + 100);
+        all_players[i]->updatePos(rand() % (WIDTH-200) + 100, rand() % (HEIGHT-200) + 100);
     }
 
     //界面刷新
     this->__main_timer_id = this->startTimer(115);
 
     //更新随机坐标
-    this->updateRandPos = new QTimer(this);
-    updateRandPos->setInterval(4e3);
-    connect(updateRandPos, &QTimer::timeout, [&](){
+    this->update_rand_pos = new QTimer(this);
+    update_rand_pos->setInterval(4e3);
+    connect(update_rand_pos, &QTimer::timeout, [&](){
         srand((unsigned)time(NULL));
-        for (int i = 0; i < OTHERPLAYERS; i++)
+        for (int i = 0; i < ALLPLAYERS_COUNTS; i++)
         {
-            int __index = rand() % FOOD_NUM;
-            while (!foods[__index]->isExist()) __index = rand() % FOOD_NUM;
-            this->__other_move_targetx[i] = foods[__index]->getCircleX();
-            this->__other_move_targety[i] = foods[__index]->getCircleY();
+            if (this->all_players[i]->isMe())
+                continue;
+            int __i = i % OTHERPLAYERS;
+            for (int j = __i; j < ALLPLAYERS_COUNTS; j++)
+            {
+                if (this->all_players[i]->getSize() > this->all_players[j]->getSize())
+                {
+                    this->__other_move_targetx[__i] = this->all_players[j]->getCircleX();
+                    this->__other_move_targety[__i] = this->all_players[j]->getCircleY();
+                }
+                else
+                {
+                    int __index = rand() % FOOD_NUM;
+                    while (!foods[__index]->isExist()) __index = rand() % FOOD_NUM;
+                    this->__other_move_targetx[__i] = foods[__index]->getCircleX();
+                    this->__other_move_targety[__i] = foods[__index]->getCircleY();
+                }
+            }
         }
-        updateRandPos->setInterval(rand() % 3000 + 1000);
+        update_rand_pos->setInterval(rand() % 3000 + 1000);
     });
-    updateRandPos->start();
+    update_rand_pos->start();
+
+    this->buffer_timer = new QTimer(this);
+    buffer_timer->setInterval(225);
+    connect(buffer_timer, &QTimer::timeout, [&](){
+        if (this->__is_just_reseted)
+            this->__a_few_time++;
+        if (this->__a_few_time > 6)
+        {
+            this->__a_few_time = 0;
+            this->__is_just_reseted = false;
+        }
+        if (!this->__is_just_reseted)
+            this->all_players[_getMyIdFromAllplayers()]->setColor("#2dbc36");
+    });
+    buffer_timer->start();
 
     //弱化背景
-    this->weakeningbg = new QLabel(this);
-    weakeningbg->resize(ui_size[0], ui_size[1]);
-    weakeningbg->hide();
-    weakeningbg->setStyleSheet("background-color: rgb(206, 206, 206, 45);");
-    weakeningbg->setCursor(Qt::ArrowCursor);
+    this->weakening_bg = new QLabel(this);
+    weakening_bg->resize(ui_size[0], ui_size[1]);
+    weakening_bg->hide();
+    weakening_bg->setStyleSheet("background-color: rgb(206, 206, 206, 45);");
+    weakening_bg->setCursor(Qt::ArrowCursor);
 
-    //重生按钮
-    this->again = new QPushButton(this);
-    again->resize(200, 100);
-    again->move((ui_size[0] / 2) - (again->width() / 2), (ui_size[1] / 2) - (again->height() / 2));
-    again->setText("重生");
-    again->hide();
-    again->setCursor(Qt::PointingHandCursor);
-    again->setStyleSheet("QPushButton {"
+    //重生按钮或结束语
+    this->again_or_end = new QPushButton(this);
+    again_or_end->resize(600, 100);
+    again_or_end->move((ui_size[0] / 2) - (again_or_end->width() / 2), (ui_size[1] / 2) - (again_or_end->height() / 2));
+    again_or_end->hide();
+    again_or_end->setCursor(Qt::PointingHandCursor);
+    again_or_end->setStyleSheet("QPushButton {"
                          "font-size: 46pt;"
                          "color: rgb(211, 211, 211);"
                          "background-color: rgb(0, 0, 0, 0);"
@@ -78,29 +107,41 @@ GamingWidget::GamingWidget(QWidget *parent)
                          "QPushButton::hover {"
                          "color: rgb(59, 197, 114);"
                          "}");
-    connect(again, &QPushButton::clicked, [&](){
+    connect(again_or_end, &QPushButton::clicked, [&](){
         this->__is_gameover = false;
-        this->allplayers[_getMyIdFromAllplayers()] = new Ball(this, 50, PLAYER_DEFAULT_SPEED, "#2dbc36", true);
+        this->all_players[_getMyIdFromAllplayers()]->hide();
+        this->all_players[_getMyIdFromAllplayers()] = new Ball(this, 50, PLAYER_DEFAULT_SPEED, "#2dbc36", true);
         this->position[0] = rand() % (WIDTH - 100) + 50;
         this->position[1] = rand() % (HEIGHT - 100) + 50;
-//        this->allplayers[_getMyIdFromAllplayers()]->move(position[0], position[1]);
-        again->hide();
-        weakeningbg->hide();
+        this->all_players[_getMyIdFromAllplayers()]->updatePos(position[0], position[1]);
+        again_or_end->hide();
+        weakening_bg->hide();
+        this->__is_just_reseted = true;
+        this->__a_few_time = 0;
     });
 }
 
 void GamingWidget::timerEvent(QTimerEvent* event)
 {
-    if (event->timerId() != this->__main_timer_id) return;
-
-    //IsGameOver
-    _gameOver();
-    if (this->__is_gameover) return;
-
-    this->__game_time++;
+    if (event->timerId() != this->__main_timer_id)
+        return;
 
 //BiggerDetermination
     _biggerDetermination();
+
+//BlinkMe
+    _blinkMe();
+
+//IsGameOver
+    _gameOver();
+
+//GameWinner
+    _gameWinner();
+
+if (this->__is_gameover)
+    return;
+
+    this->__game_time++;
 
 //SpeedDecline
     _speedDecline();
@@ -131,7 +172,7 @@ int GamingWidget::_getMyIdFromAllplayers() const
 {
     for (int i = 0; i < ALLPLAYERS_COUNTS; i++)
     {
-        if (this->allplayers[i]->isMe())
+        if (this->all_players[i]->isMe())
         {
             return i;
         }
@@ -157,43 +198,93 @@ void GamingWidget::_autoShowAndHide()
 {
     for (int i = 0; i < ALLPLAYERS_COUNTS; i++)
     {
-        if (this->allplayers[i]->isExist())
+        if (this->all_players[i]->isExist())
         {
-            this->allplayers[i]->show();
+            this->all_players[i]->show();
         }
-        else this->allplayers[i]->hide();
+        else this->all_players[i]->hide();
     }
 }
 
 void GamingWidget::_autoResetOther()
 {
+    if (this->__a_few_time % 2 != 0)
+        return;
+    srand((unsigned)time(NULL));
     for (int i = 0; i < OTHERPLAYERS; i++)
     {
-        if (this->allplayers[i]->isExist()) continue;
-        delete this->allplayers[i];
-        this->allplayers[i] = new Ball(this, rand() % 90 + 30, OTHERS_AMEND_SPEED, QString("rgb(%1,%2,%3)")
+        if (this->all_players[i]->isExist())
+            continue;
+        delete this->all_players[i];
+        this->all_players[i] = new Ball(this, rand() % 170 + 30, OTHERS_AMEND_SPEED, QString("rgb(%1,%2,%3)")
                                    .arg(rand() % 225 + 25)
                                    .arg(rand() % 225 + 25)
                                    .arg(rand() % 225 + 25));
-        allplayers[i]->updatePos(rand() % (WIDTH-200) + 100, rand() % (HEIGHT-200) + 100);
+        all_players[i]->updatePos(rand() % (WIDTH-200) + 100, rand() % (HEIGHT-200) + 100);
     }
+}
+
+void GamingWidget::_showTipScreen(const QString& content)
+{
+    //background
+    if (this->weakening_bg->isHidden()) this->weakening_bg->show();
+    this->weakening_bg->raise();
+
+    //foreground
+    if (this->again_or_end->isHidden())
+    {
+        this->again_or_end->setText(content);
+        this->again_or_end->show();
+    }
+    this->again_or_end->raise();
 }
 
 void GamingWidget::_gameOver()
 {
-    if (this->allplayers[_getMyIdFromAllplayers()]->isExist()) return;
-    if (this->weakeningbg->isHidden()) this->weakeningbg->show();
-    this->weakeningbg->raise();
-    if (this->again->isHidden()) this->again->show();
-    this->again->raise();
+    if (this->all_players[_getMyIdFromAllplayers()]->isExist())
+        return;
+    this->_showTipScreen("重生");
+    this->setEnabled(true);
     this->__is_gameover = true;
+}
+
+void GamingWidget::_gameWinner()
+{
+    for (int i = 0; i < ALLPLAYERS_COUNTS; i++)
+    {
+        if (this->all_players[i]->getSize() >= BALL_MAX_SIZE)
+        {
+            this->_showTipScreen(QString("第 %1 名 !!!").arg(this->all_players[_getMyIdFromAllplayers()]->getRank()));
+            this->again_or_end->setDisabled(true);
+            this->__is_gameover = true;
+        }
+    }
 }
 
 void GamingWidget::_biggerDetermination()
 {
-    sortPlayersBySize(this->allplayers, ALLPLAYERS_COUNTS);
+    sortPlayersBySize(this->all_players, ALLPLAYERS_COUNTS);
 
-    for (int i = 0; i < ALLPLAYERS_COUNTS; i++) this->allplayers[i]->raise();
+    int count = ALLPLAYERS_COUNTS;
+    for (int i = 0; i < ALLPLAYERS_COUNTS; i++)
+    {
+        this->all_players[i]->raise();
+        this->all_players[i]->setRank(count--);
+    }
+}
+
+void GamingWidget::_blinkMe()
+{
+    if (!this->__is_just_reseted)
+        return;
+    if (this->__a_few_time % 2 == 0)
+    {
+        this->all_players[_getMyIdFromAllplayers()]->setColor("#c4ffbb");
+    }
+    else if (this->__a_few_time % 2 != 0)
+    {
+        this->all_players[_getMyIdFromAllplayers()]->setColor("#2dbc36");
+    }
 }
 
 void GamingWidget::_speedDecline()
@@ -201,14 +292,14 @@ void GamingWidget::_speedDecline()
     double __decline_scale;
     for (int i = 0; i < ALLPLAYERS_COUNTS; i++)
     {
-        __decline_scale = (allplayers[i]->getSize() * allplayers[i]->getSize()) / 131576;
+        __decline_scale = (all_players[i]->getSize() * all_players[i]->getSize()) / 131576;
         if (__decline_scale > 0)
         {
-            if (allplayers[i]->isMe())
+            if (all_players[i]->isMe())
             {
-                allplayers[i]->setSpeed(PLAYER_DEFAULT_SPEED - (__decline_scale));
+                all_players[i]->setSpeed(PLAYER_DEFAULT_SPEED - (__decline_scale));
             }
-            else allplayers[i]->setSpeed(OTHERS_AMEND_SPEED - (__decline_scale));
+            else all_players[i]->setSpeed(OTHERS_AMEND_SPEED - (__decline_scale));
         }
     }
 }
@@ -219,7 +310,7 @@ void GamingWidget::_playerMoving()
     QPoint mouse = this->mapFromGlobal(QCursor::pos());
     int mx = mouse.x();
     int my = mouse.y();
-    Ball* player = this->allplayers[_getMyIdFromAllplayers()];
+    Ball* player = this->all_players[_getMyIdFromAllplayers()];
     double playerspeed = player->getSpeed();
     if (Ball::doubleAbs(mx - position[0]) > 10 || Ball::doubleAbs(my - position[1]) > 10)
     {
@@ -302,33 +393,35 @@ void GamingWidget::_othersMoving()
 {
     for (int i = 0; i < ALLPLAYERS_COUNTS; i++)
     {
-        if (allplayers[i]->isMe()) continue;
+        if (all_players[i]->isMe())
+            continue;
         int __i = i % OTHERPLAYERS;
-        if (this->allplayers[i]->isExist())
+        if (this->all_players[i]->isExist())
         {
-            int curx = allplayers[i]->getCircleX();
-            int cury = allplayers[i]->getCircleY();
+            int curx = all_players[i]->getCircleX();
+            int cury = all_players[i]->getCircleY();
+            double speed = this->all_players[i]->getSpeed();
             if (__other_move_targetx[__i] > curx && __other_move_targety[__i] > cury)  //rightdown
             {
-                curx += this->allplayers[i]->getSpeed();
-                cury += this->allplayers[i]->getSpeed();
+                curx += speed;
+                cury += speed;
             }
             else if (__other_move_targetx[__i] > curx && __other_move_targety[__i] < cury)  //rightup
             {
-                curx += this->allplayers[i]->getSpeed();
-                cury -= this->allplayers[i]->getSpeed();
+                curx += speed;
+                cury -= speed;
             }
             else if (__other_move_targetx[__i] < curx && __other_move_targety[__i] > cury)  //leftdown
             {
-                curx -= this->allplayers[i]->getSpeed();
-                cury += this->allplayers[i]->getSpeed();
+                curx -= speed;
+                cury += speed;
             }
             else if (__other_move_targetx[__i] < curx && __other_move_targety[__i] < cury)  //leftup
             {
-                curx -= this->allplayers[i]->getSpeed();
-                cury -= this->allplayers[i]->getSpeed();
+                curx -= speed;
+                cury -= speed;
             }
-            allplayers[i]->updatePos(curx, cury);
+            all_players[i]->updatePos(curx, cury);
         }
     }
 }
@@ -339,26 +432,26 @@ void GamingWidget::_eatFood()
     {
         for (int j = 0; j < ALLPLAYERS_COUNTS; j++)
         {
-            if (this->allplayers[j]->isExist())
+            if (this->all_players[j]->isExist())
             {
                 if (foods[i]->isExist())
                 {
                     foods[i]->show();
 
                     //be eat
-                    int cx = this->allplayers[j]->getCircleX();
-                    int cy = this->allplayers[j]->getCircleY();
+                    int cx = this->all_players[j]->getCircleX();
+                    int cy = this->all_players[j]->getCircleY();
                     int fdcx = foods[i]->getCircleX();
                     int fdcy = foods[i]->getCircleY();
                     int d = sqrt(((cx - fdcx)*(cx - fdcx)) + ((cy - fdcy)*(cy - fdcy)));
-                    if (d + (foods[i]->getSize() / 2) <= (this->allplayers[j]->getSize() / 2))
+                    if (d + (foods[i]->getSize() / 2) <= (this->all_players[j]->getSize() / 2))
                     {
                         foods[i]->setExist(false);
                         foods[i]->hide();
-                        existingfoodnum--;
-                        if (this->allplayers[j]->getSize() < BALL_MAX_SIZE)
+                        existing_food_num--;
+                        if (this->all_players[j]->getSize() < BALL_MAX_SIZE)
                         {
-                            this->allplayers[j]->growUp(foods[i]->getSize());
+                            this->all_players[j]->growUp(foods[i]->getSize());
                         }
                     }
                 }
@@ -375,20 +468,22 @@ void GamingWidget::_eatingAndEated()
         for (int j = i; j < ALLPLAYERS_COUNTS; j++)
         {
             //player[j] eat player[i]
-            if (this->allplayers[i]->getSize() < this->allplayers[j]->getSize())
+            if (!(this->all_players[i]->isExist() && this->all_players[j]->isExist()))
+                continue;
+            if (this->all_players[i]->getSize() < this->all_players[j]->getSize())
             {
                 int x1, x2, y1, y2;
-                x1 = this->allplayers[i]->getCircleX();
-                x2 = this->allplayers[j]->getCircleX();
-                y1 = this->allplayers[i]->getCircleY();
-                y2 = this->allplayers[j]->getCircleY();
-                if (sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2)) + (this->allplayers[i]->getSize() / 2) <= (this->allplayers[j]->getSize() / 2))
+                x1 = this->all_players[i]->getCircleX();
+                x2 = this->all_players[j]->getCircleX();
+                y1 = this->all_players[i]->getCircleY();
+                y2 = this->all_players[j]->getCircleY();
+                if (sqrt((x1 - x2)*(x1 - x2) + (y1 - y2)*(y1 - y2)) + (this->all_players[i]->getSize() / 2) <= (this->all_players[j]->getSize() / 2))
                 {
-                    this->allplayers[i]->setExist(false);
-                    this->allplayers[i]->hide();
-                    if (this->allplayers[j]->getSize() < BALL_MAX_SIZE)
+                    this->all_players[i]->setExist(false);
+                    this->all_players[i]->hide();
+                    if (this->all_players[j]->getSize() < BALL_MAX_SIZE)
                     {
-                        this->allplayers[j]->growUp(this->allplayers[i]->getSize());
+                        this->all_players[j]->growUp(this->all_players[i]->getSize());
                     }
                 }
             }
@@ -398,7 +493,7 @@ void GamingWidget::_eatingAndEated()
 
 void GamingWidget::_createNewFood()
 {
-    if (existingfoodnum < static_cast<unsigned int>((FOOD_NUM - static_cast<int>(this->__game_time / 6e2)) / 2))
+    if (existing_food_num < static_cast<unsigned int>((FOOD_NUM - static_cast<int>(this->__game_time / 6e2)) / 2))
     {
         for (int i = 0; i < static_cast<int>(FOOD_NUM - static_cast<int>(this->__game_time / 6e2)); i++)
         {
@@ -408,7 +503,7 @@ void GamingWidget::_createNewFood()
                 foods[i] = new Food(this);
                 foods[i]->move(rand() % WIDTH, rand() % HEIGHT);
                 foods[i]->lower();
-                existingfoodnum++;
+                existing_food_num++;
             }
         }
     }

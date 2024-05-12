@@ -8,7 +8,7 @@ Ball::Ball(QWidget *parent, const int& size, const double& speed, const QString&
     this->__color = color;
     this->_isMe = _isMe;
     this->__is_exist = true;
-    updateSize();
+    updateQuality();
 }
 
 double Ball::doubleAbs(double num)
@@ -35,7 +35,7 @@ double Ball::getSize() const
 bool Ball::reSize(const double& size)
 {
     this->__size = size;
-    return updateSize();
+    return updateQuality();
 }
 
 double Ball::getSpeed() const
@@ -48,12 +48,18 @@ void Ball::setSpeed(const double& speed)
     this->__speed = speed;
 }
 
+void Ball::setColor(const QString& color)
+{
+    this->__color = color;
+    this->updateQuality();
+}
+
 void Ball::growUp(const double& size)
 {
     this->reSize(this->__size + (size * ((1 / (this->__size + 6)) + 0.13)));
 }
 
-bool Ball::updateSize()
+bool Ball::updateQuality()
 {
     this->resize(this->__size, this->__size);
     this->setStyleSheet(QString("QLabel {"
@@ -87,6 +93,16 @@ int Ball::getCircleY() const
 bool Ball::isMe() const
 {
     return this->_isMe;
+}
+
+int Ball::getRank() const
+{
+    return this->__rank;
+}
+
+void Ball::setRank(const int& rank)
+{
+    this->__rank = rank;
 }
 
 Ball::~Ball()
