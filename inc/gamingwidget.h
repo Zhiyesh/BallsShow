@@ -59,7 +59,7 @@ protected:
     void timerEvent(QTimerEvent* event);
 
 private:
-    unsigned int ui_size[2];
+    unsigned int screen_size[2];
     float position[2];
     int __main_timer_id;
     int __a_few_time;
@@ -75,6 +75,7 @@ private:
     QLabel* weakening_bg;
     bool __is_gameover;
     bool __is_just_reseted;
+    bool __have_winner;
 };
 
 #endif // GAMINGWIDGET_H

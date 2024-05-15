@@ -4,16 +4,19 @@ GamingWidget::GamingWidget(QWidget *parent)
     : QWidget(parent)
 {
     //设置主界面
-    this->ui_size[0] = WIDTH;
-    this->ui_size[1] = HEIGHT;
-    this->setFixedSize(ui_size[0], ui_size[1]);
+    this->screen_size[0] = WIDTH;
+    this->screen_size[1] = HEIGHT;
+    this->setFixedSize(screen_size[0], screen_size[1]);
     this->setStyleSheet("background-color: #262626;");
     this->setCursor(Qt::CrossCursor);
 
-    this->position[0] = ui_size[0] / 2 - 25;
-    this->position[1] = ui_size[1] / 2 - 25;
+    this->position[0] = screen_size[0] / 2 - 25;
+    this->position[1] = screen_size[1] / 2 - 25;
     this->__game_time = 0;
     this->__a_few_time = 0;
+    this->__is_gameover = false;
+    this->__is_just_reseted = false;
+    this->__have_winner = false;
 
     //食物
     srand((unsigned)time(NULL));
@@ -26,7 +29,7 @@ GamingWidget::GamingWidget(QWidget *parent)
     this->existing_food_num = FOOD_NUM;
 
     //你和其他玩家
-    this->all_players[OTHERPLAYERS] = new Ball(this, 50, PLAYER_DEFAULT_SPEED, "#2dbc36", true);
+    this->all_players[OTHERPLAYERS] = new Ball(this, 800, PLAYER_DEFAULT_SPEED, "#2dbc36", true);
     this->all_players[OTHERPLAYERS]->updatePos(position[0], position[1]);
     this->__is_gameover = false;
     for (int i = 0; i < OTHERPLAYERS; i++)
@@ -88,15 +91,15 @@ GamingWidget::GamingWidget(QWidget *parent)
 
     //弱化背景
     this->weakening_bg = new QLabel(this);
-    weakening_bg->resize(ui_size[0], ui_size[1]);
+    weakening_bg->resize(screen_size[0], screen_size[1]);
     weakening_bg->hide();
-    weakening_bg->setStyleSheet("background-color: rgb(206, 206, 206, 45);");
+    weakening_bg->setStyleSheet("background-color: rgb(67, 67, 67, 102);");
     weakening_bg->setCursor(Qt::ArrowCursor);
 
     //重生按钮或结束语
     this->again_or_end = new QPushButton(this);
     again_or_end->resize(600, 100);
-    again_or_end->move((ui_size[0] / 2) - (again_or_end->width() / 2), (ui_size[1] / 2) - (again_or_end->height() / 2));
+    again_or_end->move((screen_size[0] / 2) - (again_or_end->width() / 2), (screen_size[1] / 2) - (again_or_end->height() / 2));
     again_or_end->hide();
     again_or_end->setCursor(Qt::PointingHandCursor);
     again_or_end->setStyleSheet("QPushButton {"
@@ -117,6 +120,7 @@ GamingWidget::GamingWidget(QWidget *parent)
         again_or_end->hide();
         weakening_bg->hide();
         this->__is_just_reseted = true;
+        this->__have_winner = false;
         this->__a_few_time = 0;
     });
 }
@@ -250,13 +254,26 @@ void GamingWidget::_gameOver()
 
 void GamingWidget::_gameWinner()
 {
+    if (this->__have_winner)
+    {
+        this->weakening_bg->raise();
+        this->again_or_end->raise();
+        return;
+    }
     for (int i = 0; i < ALLPLAYERS_COUNTS; i++)
     {
         if (this->all_players[i]->getSize() >= BALL_MAX_SIZE)
         {
-            this->_showTipScreen(QString("第 %1 名 !!!").arg(this->all_players[_getMyIdFromAllplayers()]->getRank()));
-            this->again_or_end->setDisabled(true);
+            this->__have_winner = true;
+            const int move_to_up_scale = 43;
+            this->_showTipScreen(QString("！第 %1 名！！").arg(this->all_players[_getMyIdFromAllplayers()]->getRank()));
+            this->again_or_end->move(again_or_end->x(), again_or_end->y() - move_to_up_scale);
+            again_or_end->setEnabled(false);
             this->__is_gameover = true;
+            Zy::mSleep(4.5e3);
+            again_or_end->setEnabled(true);
+            again_or_end->setText("新游戏");
+            again_or_end->move(again_or_end->x(), again_or_end->y() + move_to_up_scale);
         }
     }
 }
